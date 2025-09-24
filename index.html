@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF/Word 轉 JPG 工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.15);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .upload-hint {
+            color: #777;
+            font-size: 0.9rem;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .convert-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin: 20px 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .convert-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .download-all-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+
+        .download-all-btn:hover {
+            background: #138496;
+            transform: translateY(-2px);
+        }
+
+        .settings {
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .settings h4 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 10px 0;
+        }
+
+        .setting-item label {
+            color: #555;
+        }
+
+        .setting-item input, .setting-item select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .image-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 PDF/Word 轉 JPG 工具</h1>
+        
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">點擊或拖拽文件到這裡</div>
+            <div class="upload-hint">支持 PDF 和 Word 文件 (最大 10MB)</div>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx" multiple>
+        </div>
+
+        <div class="file-info" id="fileInfo"></div>
+        
+        <div class="settings">
+            <h4>⚙️ 轉換設定</h4>
+            <div class="setting-item">
+                <label>圖片品質:</label>
+                <select id="qualitySelect">
+                    <option value="1">標準 (1倍)</option>
+                    <option value="1.5">高品質 (1.5倍)</option>
+                    <option value="2" selected>超高品質 (2倍)</option>
+                    <option value="3">最高品質 (3倍)</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>圖片格式:</label>
+                <select id="formatSelect">
+                    <option value="jpeg" selected>JPG</option>
+                    <option value="png">PNG</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>JPG 品質:</label>
+                <input type="range" id="jpegQuality" min="0.1" max="1" step="0.1" value="0.9">
+                <span id="qualityValue">90%</span>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="convert-btn" id="convertBtn" disabled>🔄 開始轉換</button>
+            <button class="convert-btn" id="clearBtn">🗑️ 清除所有</button>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="results" id="results">
+            <h3>✨ 轉換結果</h3>
+            <button class="download-all-btn" id="downloadAllBtn">📦 下載全部圖片</button>
+            <div class="image-grid" id="imageGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+        let convertedImages = [];
+
+        // 設定 PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.querySelector('.upload-area');
+        const fileInfo = document.getElementById('fileInfo');
+        const convertBtn = document.getElementById('convertBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const results = document.getElementById('results');
+        const imageGrid = document.getElementById('imageGrid');
+        const qualitySelect = document.getElementById('qualitySelect');
+        const formatSelect = document.getElementById('formatSelect');
+        const jpegQuality = document.getElementById('jpegQuality');
+        const qualityValue = document.getElementById('qualityValue');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+
+        // 品質滑桿更新
+        jpegQuality.addEventListener('input', function() {
+            qualityValue.textContent = Math.round(this.value * 100) + '%';
+        });
+
+        // 拖拽上傳
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            handleFiles(files);
+        });
+
+        fileInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+
+        function handleFiles(files) {
+            const validFiles = files.filter(file => {
+                const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                return validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024;
+            });
+
+            if (validFiles.length === 0) {
+                alert('請選擇有效的 PDF 或 Word 文件（最大 10MB）');
+                return;
+            }
+
+            selectedFiles = validFiles;
+            displayFileInfo();
+            convertBtn.disabled = false;
+        }
+
+        function displayFileInfo() {
+            if (selectedFiles.length === 0) {
+                fileInfo.style.display = 'none';
+                return;
+            }
+
+            const fileList = selectedFiles.map(file => 
+                `<div>📎 ${file.name} (${formatFileSize(file.size)})</div>`
+            ).join('');
+
+            fileInfo.innerHTML = `
+                <h4>已選擇 ${selectedFiles.length} 個文件:</h4>
+                ${fileList}
+            `;
+            fileInfo.style.display = 'block';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        convertBtn.addEventListener('click', async function() {
+            if (selectedFiles.length === 0) return;
+
+            convertBtn.disabled = true;
+            progressBar.style.display = 'block';
+            results.style.display = 'none';
+            imageGrid.innerHTML = '';
+            convertedImages = [];
+
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                const progress = ((i + 1) / selectedFiles.length) * 100;
+                progressFill.style.width = progress + '%';
+
+                try {
+                    if (file.type === 'application/pdf') {
+                        await convertPDF(file);
+                    } else {
+                        await convertWord(file);
+                    }
+                } catch (error) {
+                    console.error('轉換錯誤:', error);
+                    alert(`轉換 ${file.name} 時發生錯誤: ${error.message}`);
+                }
+            }
+
+            progressBar.style.display = 'none';
+            results.style.display = 'block';
+            convertBtn.disabled = false;
+        });
+
+        async function convertPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const scale = parseFloat(qualitySelect.value);
+                const viewport = page.getViewport({ scale });
+                
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+
+                const format = formatSelect.value;
+                const quality = format === 'jpeg' ? parseFloat(jpegQuality.value) : 1;
+                const imageData = canvas.toDataURL(`image/${format}`, quality);
+                
+                const fileName = `${file.name.replace(/\.[^/.]+$/, '')}_page_${pageNum}.${format === 'jpeg' ? 'jpg' : 'png'}`;
+                convertedImages.push({ data: imageData, name: fileName });
+                addImageToGrid(imageData, fileName);
+            }
+        }
+
+        async function convertWord(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const result = await mammoth.extractRawText({ arrayBuffer });
+                
+                // 創建一個簡單的文本到圖片轉換
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                
+                // 設置畫布大小
+                const scale = parseFloat(qualitySelect.value);
+                canvas.width = 800 * scale;
+                canvas.height = 1000 * scale;
+                
+                // 設置背景
+                context.fillStyle = 'white';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 設置文字樣式
+                context.fillStyle = 'black';
+                context.font = `${16 * scale}px Arial`;
+                
+                // 分行顯示文字
+                const lines = result.value.split('\n');
+                const lineHeight = 20 * scale;
+                let y = 30 * scale;
+                
+                for (let line of lines) {
+                    if (y > canvas.height - 30) break;
+                    // 處理長文本換行
+                    const words = line.split(' ');
+                    let currentLine = '';
+                    
+                    for (let word of words) {
+                        const testLine = currentLine + word + ' ';
+                        const metrics = context.measureText(testLine);
+                        
+                        if (metrics.width > canvas.width - 60 * scale && currentLine !== '') {
+                            context.fillText(currentLine, 30 * scale, y);
+                            currentLine = word + ' ';
+                            y += lineHeight;
+                            if (y > canvas.height - 30) break;
+                        } else {
+                            currentLine = testLine;
+                        }
+                    }
+                    
+                    if (currentLine && y <= canvas.height - 30) {
+                        context.fillText(currentLine, 30 * scale, y);
+                        y += lineHeight;
+                    }
+                }
+
+                const format = formatSelect.value;
+                const quality = format === 'jpeg' ? parseFloat(jpegQuality.value) : 1;
+                const imageData = canvas.toDataURL(`image/${format}`, quality);
+                
+                const fileName = `${file.name.replace(/\.[^/.]+$/, '')}.${format === 'jpeg' ? 'jpg' : 'png'}`;
+                convertedImages.push({ data: imageData, name: fileName });
+                addImageToGrid(imageData, fileName);
+                
+            } catch (error) {
+                console.error('Word 轉換錯誤:', error);
+                alert('Word 文件轉換失敗，請嘗試其他文件或使用 PDF 格式');
+            }
+        }
+
+        function addImageToGrid(imageData, fileName) {
+            const imageCard = document.createElement('div');
+            imageCard.className = 'image-card';
+            
+            imageCard.innerHTML = `
+                <img src="${imageData}" alt="${fileName}">
+                <div style="text-align: center; margin-top: 10px;">
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 8px;">${fileName}</div>
+                    <button class="download-btn" onclick="downloadImage('${imageData}', '${fileName}')">
+                        💾 下載
+                    </button>
+                </div>
+            `;
+            
+            imageGrid.appendChild(imageCard);
+        }
+
+        function downloadImage(imageData, fileName) {
+            const link = document.createElement('a');
+            link.download = fileName;
+            link.href = imageData;
+            link.click();
+        }
+
+        downloadAllBtn.addEventListener('click', function() {
+            if (convertedImages.length === 0) return;
+            
+            convertedImages.forEach(image => {
+                setTimeout(() => downloadImage(image.data, image.name), 100);
+            });
+        });
+
+        clearBtn.addEventListener('click', function() {
+            selectedFiles = [];
+            convertedImages = [];
+            fileInfo.style.display = 'none';
+            results.style.display = 'none';
+            progressBar.style.display = 'none';
+            imageGrid.innerHTML = '';
+            fileInput.value = '';
+            convertBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>
